@@ -1,0 +1,478 @@
+1. High-Level Architecture Diagram
+
++----------------------------------------------------------------------------------------+
+|                                    Client Layer                                          |
+|  +----------------+  +----------------+  +----------------+  +----------------+         |
+|  |   Web Client   |  |  Mobile Client |  |  Admin Portal  |  |  API Gateway   |         |
+|  |    (React)     |  |    (React)     |  |    (React)     |  |  (Spring Cloud)|         |
+|  +----------------+  +----------------+  +----------------+  +----------------+         |
++----------------------------------------------------------------------------------------+
+                                          ↓
++----------------------------------------------------------------------------------------+
+|                                    API Gateway Layer                                     |
+|  +----------------+  +----------------+  +----------------+  +----------------+         |
+|  | Authentication |  |   Rate Limiter |  |  Load Balancer |  |  API Router    |         |
+|  |    Service     |  |                |  |                |  |                |         |
+|  +----------------+  +----------------+  +----------------+  +----------------+         |
++----------------------------------------------------------------------------------------+
+                                          ↓
++----------------------------------------------------------------------------------------+
+|                                    Microservices Layer                                   |
+|  +----------------+  +----------------+  +----------------+  +----------------+         |
+|  |    User        |  |  Maintenance   |  |    Asset       |  |  Notification  |         |
+|  |  Service       |  |    Service     |  |    Service     |  |    Service     |         |
+|  +----------------+  +----------------+  +----------------+  +----------------+         |
+|                                                                                        |
+|  +----------------+  +----------------+  +----------------+  +----------------+         |
+|  |  Scheduling    |  |    Reporting   |  |    Analytics   |  |    File        |         |
+|  |    Service     |  |    Service     |  |    Service     |  |    Service     |         |
+|  +----------------+  +----------------+  +----------------+  +----------------+         |
++----------------------------------------------------------------------------------------+
+                                          ↓
++----------------------------------------------------------------------------------------+
+|                                    Infrastructure Layer                                  |
+|  +----------------+  +----------------+  +----------------+  +----------------+         |
+|  |    Database    |  |    Cache       |  |  Message Queue |  |  File Storage  |         |
+|  |  (PostgreSQL)  |  |    (Redis)     |  |    (RabbitMQ)  |  |    (S3)        |         |
+|  +----------------+  +----------------+  +----------------+  +----------------+         |
++----------------------------------------------------------------------------------------+
+```
+
+# 2. Component Breakdown with Responsibilities
+
+## Client Layer
+1. **Web Client (React)**
+   - User interface for regular employees
+   - Maintenance request submission
+   - Asset viewing and reporting
+
+2. **Mobile Client (React)**
+   - Mobile-optimized interface
+   - Push notifications
+   - Offline capabilities
+
+3. **Admin Portal (React)**
+   - Administrative dashboard
+   - System configuration
+   - User management
+   - Advanced reporting
+
+4. **API Gateway (Spring Cloud)**
+   - Request routing
+   - Authentication
+   - Rate limiting
+   - Load balancing
+
+## Microservices Layer
+1. **User Service**
+   - User management
+   - Authentication
+   - Role management
+   - Profile management
+
+2. **Maintenance Service**
+   - Request management
+   - Work order processing
+   - Status tracking
+   - Priority management
+
+3. **Asset Service**
+   - Asset registration
+   - Asset tracking
+   - Maintenance history
+   - Asset lifecycle management
+
+4. **Notification Service**
+   - Email notifications
+   - SMS alerts
+   - Push notifications
+   - Notification templates
+
+5. **Scheduling Service**
+   - Maintenance scheduling
+   - Resource allocation
+   - Calendar management
+   - Conflict resolution
+
+6. **Reporting Service**
+   - Report generation
+   - Data aggregation
+   - Export functionality
+   - Custom report creation
+
+7. **Analytics Service**
+   - Performance metrics
+   - Trend analysis
+   - Predictive maintenance
+   - KPI tracking
+
+8. **File Service**
+   - File upload/download
+   - Document management
+   - Image processing
+   - Storage management
+
+## Infrastructure Layer
+1. **Database (PostgreSQL)**
+   - Data persistence
+   - Transaction management
+   - Data integrity
+   - Backup and recovery
+
+2. **Cache (Redis)**
+   - Session management
+   - Data caching
+   - Rate limiting
+   - Real-time features
+
+3. **Message Queue (RabbitMQ)**
+   - Asynchronous processing
+   - Service communication
+   - Event handling
+   - Task distribution
+
+4. **File Storage (S3)**
+   - Document storage
+   - Image storage
+   - Backup storage
+   - CDN integration
+
+# 3. Database Schema Design
+
+```sql
+-- Users and Authentication
+CREATE TABLE users (
+    id BIGSERIAL PRIMARY KEY,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(20) NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Assets
+CREATE TABLE assets (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    category VARCHAR(50) NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    location VARCHAR(100),
+    purchase_date DATE,
+    warranty_end_date DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Maintenance Requests
+CREATE TABLE maintenance_requests (
+    id BIGSERIAL PRIMARY KEY,
+    title VARCHAR(200) NOT NULL,
+    description TEXT,
+    priority VARCHAR(20) NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    requester_id BIGINT REFERENCES users(id),
+    assigned_to_id BIGINT REFERENCES users(id),
+    asset_id BIGINT REFERENCES assets(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Maintenance Schedule
+CREATE TABLE maintenance_schedule (
+    id BIGSERIAL PRIMARY KEY,
+    asset_id BIGINT REFERENCES assets(id),
+    maintenance_type VARCHAR(50) NOT NULL,
+    scheduled_date TIMESTAMP NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    assigned_to_id BIGINT REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Notifications
+CREATE TABLE notifications (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT REFERENCES users(id),
+    type VARCHAR(50) NOT NULL,
+    message TEXT NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Maintenance History
+CREATE TABLE maintenance_history (
+    id BIGSERIAL PRIMARY KEY,
+    request_id BIGINT REFERENCES maintenance_requests(id),
+    asset_id BIGINT REFERENCES assets(id),
+    performed_by_id BIGINT REFERENCES users(id),
+    description TEXT,
+    completion_date TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+# 4. API Endpoint Structure
+
+```
+/api/v1
+├── /auth
+│   ├── POST /login
+│   ├── POST /register
+│   ├── POST /refresh-token
+│   └── POST /logout
+├── /users
+│   ├── GET /
+│   ├── GET /{id}
+│   ├── POST /
+│   ├── PUT /{id}
+│   └── DELETE /{id}
+├── /assets
+│   ├── GET /
+│   ├── GET /{id}
+│   ├── POST /
+│   ├── PUT /{id}
+│   └── DELETE /{id}
+├── /maintenance
+│   ├── GET /requests
+│   ├── POST /requests
+│   ├── GET /requests/{id}
+│   ├── PUT /requests/{id}
+│   └── GET /requests/{id}/history
+├── /schedule
+│   ├── GET /
+│   ├── POST /
+│   ├── GET /{id}
+│   └── PUT /{id}
+├── /notifications
+│   ├── GET /
+│   ├── POST /
+│   └── PUT /{id}/read
+└── /reports
+    ├── GET /maintenance
+    ├── GET /assets
+    └── GET /performance
+```
+
+# 5. Technology Stack Recommendations
+
+## Backend (Java JDK 21)
+1. **Core Framework**
+   - Spring Boot 3.x
+   - Spring Cloud
+   - Spring Security
+   - Spring Data JPA
+
+2. **Database**
+   - PostgreSQL 15+
+   - Redis 7+
+   - Flyway for migrations
+
+3. **API Documentation**
+   - OpenAPI 3.0
+   - Swagger UI
+
+4. **Testing**
+   - JUnit 5
+   - Mockito
+   - TestContainers
+   - WireMock
+
+5. **Security**
+   - Spring Security
+   - JWT
+   - Bcrypt
+   - OAuth2
+
+6. **Monitoring**
+   - Spring Actuator
+   - Micrometer
+   - Prometheus
+   - Grafana
+
+7. **Logging**
+   - SLF4J
+   - Logback
+   - ELK Stack
+
+8. **Build & Dependency Management**
+   - Maven
+   - Docker
+   - Kubernetes
+
+# 6. Dependency Injection Setup
+
+```java
+@Configuration
+public class ServiceConfig {
+    
+    @Bean
+    public UserService userService(
+            UserRepository userRepository,
+            PasswordEncoder passwordEncoder,
+            NotificationService notificationService) {
+        return new UserServiceImpl(userRepository, passwordEncoder, notificationService);
+    }
+    
+    @Bean
+    public AssetService assetService(
+            AssetRepository assetRepository,
+            MaintenanceService maintenanceService) {
+        return new AssetServiceImpl(assetRepository, maintenanceService);
+    }
+    
+    @Bean
+    public MaintenanceService maintenanceService(
+            MaintenanceRequestRepository requestRepository,
+            UserService userService,
+            AssetService assetService,
+            NotificationService notificationService) {
+        return new MaintenanceServiceImpl(
+            requestRepository, 
+            userService, 
+            assetService, 
+            notificationService
+        );
+    }
+}
+```
+
+# 7. Custom Exceptions and Global Exception Handler
+
+```java
+// Custom Exceptions
+public class BusinessException extends RuntimeException {
+    private final String errorCode;
+    
+    public BusinessException(String message, String errorCode) {
+        super(message);
+        this.errorCode = errorCode;
+    }
+}
+
+public class ValidationException extends BusinessException {
+    public ValidationException(String message) {
+        super(message, "VALIDATION_ERROR");
+    }
+}
+
+public class NotFoundException extends BusinessException {
+    public NotFoundException(String message) {
+        super(message, "NOT_FOUND");
+    }
+}
+
+// Global Exception Handler
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+    
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<ErrorResponse> handleBusinessException(BusinessException ex) {
+        ErrorResponse error = new ErrorResponse(
+            ex.getErrorCode(),
+            ex.getMessage(),
+            LocalDateTime.now()
+        );
+        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    }
+    
+    @ExceptionHandler(ValidationException.class)
+    public ResponseEntity<ErrorResponse> handleValidationException(ValidationException ex) {
+        ErrorResponse error = new ErrorResponse(
+            ex.getErrorCode(),
+            ex.getMessage(),
+            LocalDateTime.now()
+        );
+        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    }
+    
+    @ExceptionHandler(NotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNotFoundException(NotFoundException ex) {
+        ErrorResponse error = new ErrorResponse(
+            ex.getErrorCode(),
+            ex.getMessage(),
+            LocalDateTime.now()
+        );
+        return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+    }
+}
+```
+
+# 8. User and Asset Domain Models
+
+```java
+// User Domain
+public class User implements BaseEntity {
+    private Long id;
+    private String username;
+    private String email;
+    private String passwordHash;
+    private UserRole role;
+    private UserStatus status;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+    // Getters, setters, and constructors
+}
+
+// Asset Domain
+public class Asset implements BaseEntity {
+    private Long id;
+    private String name;
+    private String category;
+    private AssetStatus status;
+    private String location;
+    private LocalDate purchaseDate;
+    private LocalDate warrantyEndDate;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+    // Getters, setters, and constructors
+}
+
+// Maintenance Request Domain
+public class MaintenanceRequest implements BaseEntity {
+    private Long id;
+    private String title;
+    private String description;
+    private Priority priority;
+    private RequestStatus status;
+    private User requester;
+    private User assignedTo;
+    private Asset asset;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+    // Getters, setters, and constructors
+}
+```
+
+# 9. Base Entity Interface
+
+```java
+// Base Entity Interface
+public interface BaseEntity {
+    Long getId();
+    void setId(Long id);
+    LocalDateTime getCreatedAt();
+    void setCreatedAt(LocalDateTime createdAt);
+    LocalDateTime getUpdatedAt();
+    void setUpdatedAt(LocalDateTime updatedAt);
+}
+
+// Repository Interface
+public interface BaseRepository<T extends BaseEntity, ID> {
+    Optional<T> findById(ID id);
+    List<T> findAll();
+    T save(T entity);
+    void delete(T entity);
+    void deleteById(ID id);
+}
+
+// Service Interface
+public interface BaseService<T extends BaseEntity, ID> {
+    T findById(ID id);
+    List<T> findAll();
+    T create(T entity);
+    T update(T entity);
+    void delete(ID id);
+}
+```
